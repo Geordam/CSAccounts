@@ -1,0 +1,79 @@
+#!/bin/bash
+clear
+RIGHTNOWURL=""
+#For shell echo outputs
+RED=`tput setaf 1`
+GREEN=`tput setaf 2`
+RESET=`tput sgr0`
+
+#Provide informations
+echo ""
+echo "Provide the NOC RightNow Admin credentials"
+echo ""
+echo -n "Enter the ADMIN user --> "
+read ADMINUSERNAME
+echo ""
+echo -n "Enter the ADMIN password --> "
+read ADMINPASSWORD
+echo ""
+echo ""
+echo -n "Enter the user Last Name to lookup  --> "
+read USERLASTNAME
+echo ""
+
+#Get the list of ID and fullname from the lastname
+GETID=`curl -i -s "https://"${ADMINUSERNAME}":"${ADMINPASSWORD}"@"${RIGHTNOWURL}"/services/rest/connect/v1.3/accounts?q=name.last%20like%20(%27${USERLASTNAME}%27)%20AND%20attributes.permanentlyDisabled=0"|grep -E 'id|lookupName'`
+if [[ $? != 0 ]];
+        then
+        echo ""; echo "${RED}!!!!!! An error occured, Check your ADMIN LOGIN and PASSWORD. DO NOT LOCK THE ADMIN ACCOUNT!!!!!!${RESET}";echo "" ;exit;
+fi
+
+#Check if there are any output
+if [ -z "${GETID}" ];
+  then
+        echo "";echo "${RED}No user found using the last name ${USERLASTNAME}. It might already be disabled or double check the last name${RESET}";echo "";exit;
+  else
+        #Show the output ID and LookupName
+        echo "${GETID}"
+        echo ""
+        #Ask for ID from the previous list
+        echo -n "Enter the ID to disable  (Only one at the time) --> "
+        read IDTODISABLE;
+        #Check if ID is in the previous output. This check is not totally accurate and requires the second check. example : entry 213 is in 2134643
+        if [[ "${GETID}" =~ ${IDTODISABLE} ]];
+                then
+                        GETLOOKUPNAME=`curl -i -s "https://"${ADMINUSERNAME}":"${ADMINPASSWORD}"@"${RIGHTNOWURL}"/services/rest/connect/v1.3/accounts/${IDTODISABLE}/lookupName"|grep lookupName| sed 's/\"lookupName\":/ /' |sed 's/\"/ /g'|sed -e 's/^[ \t]*//'|sed 's/ *$//'`
+                        #Check if the lookupname is in the getid
+                        if [[ "${GETID}" =~ "${GETLOOKUPNAME}" ]];
+                                then
+                                        echo ""
+                                        echo "You are about to disable ${RED}${GETLOOKUPNAME}${RESET}"
+                                        echo ""
+                                        # Confirmation to permanently disable the account
+                                        echo -n "Confirmation to permanently disable the user? y/n --> "
+                                        read CONFIRMATION
+                                        if [[ ${CONFIRMATION} =~ ^(y|Y|Yes|YES)$ ]];
+                                                then
+                                                        curl -s -H "Content-Type: application/json" \
+                                                        -H "X-HTTP-Method-Override: PATCH" \
+                                                        -X POST \
+                                                        -d "{
+                                                                \"attributes\":{
+                                                                \"permanentlyDisabled\": true 
+                                                                }
+                                                        }" \
+                                                        https://"${ADMINUSERNAME}":"${ADMINPASSWORD}"@"${RIGHTNOWURL}"/services/rest/connect/v1.3/accounts/${IDTODISABLE};
+                                                        if [[ $? != 0 ]];
+                                                                then
+                                                                        echo ""; echo "${RED}!!!!!! An error occured !!!!!! Please check manually${RESET}" ;
+                                                        fi
+                                                else
+                                                        echo "";echo "Choice cancelled";echo "Start again"
+                                        fi
+                                else
+                                        echo"";echo "${RED}The ID entered is for another user : ${GETLOOKUPNAME}${RESET}";echo "";exit 1
+                        fi
+                else
+                        echo "";echo "${RED}Wrong ID${RESET}";echo ""; exit 1
+        fi
+fi
