@@ -43,6 +43,10 @@ if [ -z "${GETID}" ];
         if [[ "${GETID}" =~ ${IDTODISABLE} ]];
                 then
                         GETLOOKUPNAME=`curl -i -s "https://"${ADMINUSERNAME}":"${ADMINPASSWORD}"@"${RIGHTNOWURL}"/services/rest/connect/v1.3/accounts/${IDTODISABLE}/lookupName"|grep lookupName| sed 's/\"lookupName\":/ /' |sed 's/\"/ /g'|sed -e 's/^[ \t]*//'|sed 's/ *$//'`
+                        if [[ $? != 0 ]];
+                                then
+                                        echo ""; echo "${RED}!!!!!! An error occured !!!!!! Please check manually${RESET}" ; exit 1;
+                        fi
                         #Check if the lookupname is in the getid
                         if [[ "${GETID}" =~ "${GETLOOKUPNAME}" ]];
                                 then
@@ -65,7 +69,7 @@ if [ -z "${GETID}" ];
                                                         https://"${ADMINUSERNAME}":"${ADMINPASSWORD}"@"${RIGHTNOWURL}"/services/rest/connect/v1.3/accounts/${IDTODISABLE};
                                                         if [[ $? != 0 ]];
                                                                 then
-                                                                        echo ""; echo "${RED}!!!!!! An error occured !!!!!! Please check manually${RESET}" ;
+                                                                        echo ""; echo "${RED}!!!!!! An error occured !!!!!! Please check manually${RESET}" ; exit 1;
                                                         fi
                                                 else
                                                         echo "";echo "Choice cancelled";echo "Start again"
